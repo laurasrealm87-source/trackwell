@@ -243,18 +243,12 @@ async function init(){
   }
   state.profiles=await getProfiles();
   state.profiles.sort((a,b)=>`${a.nombre} ${a.apellido1}`.localeCompare(`${b.nombre} ${b.apellido1}`,'es'));
-  // Pre-load checkin counts for sidebar
-  const{data:allCheckins}=await sb.from('checkins').select('profile_id');
+  // Load ALL checkins at startup so sidebar counts are correct immediately
+  const{data:allCheckins}=await sb.from('checkins').select('*').order('date');
   if(allCheckins){
     allCheckins.forEach(c=>{
       if(!state.checkins[c.profile_id])state.checkins[c.profile_id]=[];
-      // We only need the count here, actual data loads on click
-    });
-    // Count per profile
-    const counts={};
-    allCheckins.forEach(c=>{counts[c.profile_id]=(counts[c.profile_id]||0)+1;});
-    Object.keys(counts).forEach(pid=>{
-      if(!state.checkins[pid])state.checkins[pid]=new Array(counts[pid]);
+      state.checkins[c.profile_id].push(c);
     });
   }
   state.loading=false;render();
@@ -270,6 +264,7 @@ function buildView(){
   else if(state.view==='checkin')buildCheckin();
   else if(state.view==='intake')buildIntake();
   else if(state.view==='done')buildDone();
+  else if(state.view==='intakeDone')buildIntakeDone();
 }
 
 function buildLanding(){
@@ -436,17 +431,109 @@ function buildCheckin(){
   };
 }
 
+function sectionTitle(text){
+  return`<div style="font-family:'DM Serif Display',serif;font-size:1.1rem;margin:1.75rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">${text}</div>`;
+}
+
 function buildIntake(){
   const p=state.currentProfile;
-  app.innerHTML=`<div class="shell"><div class="shell-header"><button class="back-btn" id="backBtn">←</button><span class="shell-title">¡Bienvenida, ${p.nombre}!</span></div><div class="shell-content"><div class="alert alert-info">No encontramos tu perfil. Vamos a crearlo.</div><div id="intakeError"></div><div style="font-family:'DM Serif Display',serif;font-size:1.1rem;margin:1.5rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">Tus datos</div><div class="form-group"><label class="form-label">Email <span class="required">*</span></label><input type="email" class="form-input" id="iEmail"/></div><div class="form-group"><label class="form-label">Altura (cm)</label><input class="form-input" id="iAltura" placeholder="ej. 165"/></div><div style="font-family:'DM Serif Display',serif;font-size:1.1rem;margin:1.5rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">Registro de hoy</div><div class="form-group"><label class="form-label">Pasos <span class="required">*</span></label><input class="form-input" id="iSteps" placeholder="ej. 8000" inputmode="numeric"/></div><div class="form-row"><div class="form-group"><label class="form-label">Peso (kg)</label><input class="form-input" id="iWeight" placeholder="ej. 68,5" inputmode="decimal"/></div><div class="form-group"><label class="form-label">Cintura (cm)</label><input class="form-input" id="iWaist" placeholder="ej. 72" inputmode="decimal"/></div></div><div class="form-row"><div class="form-group"><label class="form-label">Cadera (cm)</label><input class="form-input" id="iHip" placeholder="ej. 98" inputmode="decimal"/></div><div class="form-group"><label class="form-label">Muslo (cm)</label><input class="form-input" id="iThigh" placeholder="ej. 54" inputmode="decimal"/></div></div><button class="btn btn-primary" id="saveBtn">Enviar →</button></div></div>`;
+  app.innerHTML=`
+  <div class="shell">
+    <div class="shell-header"><button class="back-btn" id="backBtn">←</button><span class="shell-title">¡Bienvenida, ${p.nombre}!</span></div>
+    <div class="shell-content">
+      <div class="alert alert-info" style="margin-bottom:1.5rem">Antes de empezar, cuéntanos un poco sobre ti. Tu entrenadora tendrá toda esta información para acompañarte mejor.</div>
+      <div id="intakeError"></div>
+      ${sectionTitle('Datos personales')}
+      <div class="form-group"><label class="form-label">Email <span class="required">*</span></label><input type="email" class="form-input" id="iEmail" placeholder="tu@email.com"/></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Edad</label><input class="form-input" id="iEdad" placeholder="ej. 35" inputmode="numeric"/></div>
+        <div class="form-group"><label class="form-label">Altura (cm)</label><input class="form-input" id="iAltura" placeholder="ej. 165" inputmode="numeric"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Peso actual (kg)</label><input class="form-input" id="iPeso" placeholder="ej. 68,5" inputmode="decimal"/></div>
+        <div class="form-group"><label class="form-label">Profesión</label><input class="form-input" id="iProfesion" placeholder="ej. Profesora"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Talla pantalón</label><input class="form-input" id="iTallaPantalon" placeholder="ej. 40"/></div>
+        <div class="form-group"><label class="form-label">Talla camiseta</label><input class="form-input" id="iTallaCamiseta" placeholder="ej. M"/></div>
+      </div>
+      ${sectionTitle('Tu objetivo')}
+      <div class="form-group">
+        <label class="form-label">¿Qué quieres conseguir en estas 8 semanas?</label>
+        <div class="form-hint" style="margin-bottom:.5rem">Indica kilos, talla o cambio físico. Ej: -5 kg, bajar una talla, perder grasa abdominal…</div>
+        <textarea class="form-input" id="iObjetivo" rows="3" placeholder="Ej: Bajar 5 kg y perder grasa abdominal" style="resize:vertical"></textarea>
+      </div>
+      ${sectionTitle('Actividad física')}
+      <div class="form-group">
+        <label class="form-label">¿Entrenas actualmente?</label>
+        <div style="display:flex;gap:.75rem;margin-top:.35rem">
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.9rem"><input type="radio" name="entrena" value="Sí"/> Sí</label>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.9rem"><input type="radio" name="entrena" value="No"/> No</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">¿Cuántos días/semana?</label><input class="form-input" id="iDiasEntreno" placeholder="ej. 3" inputmode="numeric"/></div>
+        <div class="form-group"><label class="form-label">Pasos diarios aprox.</label><input class="form-input" id="iPasosAprox" placeholder="ej. 8000" inputmode="numeric"/></div>
+      </div>
+      ${sectionTitle('Historial')}
+      <div class="form-group">
+        <label class="form-label">¿Has hecho dietas antes?</label>
+        <div style="display:flex;gap:.75rem;margin-top:.35rem">
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.9rem"><input type="radio" name="dietas" value="Sí"/> Sí</label>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.9rem"><input type="radio" name="dietas" value="No"/> No</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">¿Qué crees que te ha fallado?</label>
+        <textarea class="form-input" id="iFalloDietas" rows="2" placeholder="Ej: La constancia, el hambre, no ver resultados…" style="resize:vertical"></textarea>
+      </div>
+      ${sectionTitle('Restricciones importantes')}
+      <div class="form-group"><label class="form-label">¿Alguna condición médica relevante?</label><input class="form-input" id="iCondicion" placeholder="Ej: Lipedema, intolerancia a la lactosa… o Ninguna"/></div>
+      <div class="form-group">
+        <label class="form-label">¿Algún alimento que no consumas?</label>
+        <textarea class="form-input" id="iRestricciones" rows="2" placeholder="Ej: Sin gluten, no como carne… o Ninguna" style="resize:vertical"></textarea>
+      </div>
+      <button class="btn btn-primary" id="saveBtn" style="margin-top:1.5rem">Enviar y empezar →</button>
+      <div style="height:2rem"></div>
+    </div>
+  </div>`;
   document.getElementById('backBtn').onclick=()=>{state.view='lookup';render();}
   document.getElementById('saveBtn').onclick=async()=>{
     const email=document.getElementById('iEmail').value.trim();
-    if(!email){document.getElementById('intakeError').innerHTML='<div class="alert alert-error">El email es obligatorio.</div>';return;}
+    if(!email){document.getElementById('intakeError').innerHTML='<div class="alert alert-error">El email es obligatorio.</div>';window.scrollTo(0,0);return;}
     const btn=document.getElementById('saveBtn');btn.disabled=true;btn.innerHTML='<div class="spinner"></div>';
-    await upsertProfile({id:p.id,nombre:p.nombre,apellido1:p.apellido1,apellido2:p.apellido2||'',email,altura:parseDec(document.getElementById('iAltura').value),peso_inicial:parseDec(document.getElementById('iWeight').value),created_at:today(),edad:null,talla_pantalon:'',talla_camiseta:'',objetivo:'',actividad:'',entrena:'',dias_entreno:'',pasos_aprox:null,historial_dietas:'',fallo_dietas:'',condicion_medica:'',restricciones_alimentarias:'',profesion:''});
-    await upsertCheckin({profile_id:p.id,date:today(),steps:parseSteps(document.getElementById('iSteps').value),weight:parseDec(document.getElementById('iWeight').value),waist:parseDec(document.getElementById('iWaist').value),hip:parseDec(document.getElementById('iHip').value),thigh:parseDec(document.getElementById('iThigh').value)});
-    state.profiles=await getProfiles();state.view='done';render();
+    const entrena=document.querySelector('input[name="entrena"]:checked')?.value||'';
+    const historialDietas=document.querySelector('input[name="dietas"]:checked')?.value||'';
+    const diasEntreno=document.getElementById('iDiasEntreno').value.trim();
+    const actividad=[entrena?`Entrena: ${entrena}`:'',diasEntreno?`${diasEntreno} días/sem`:''].filter(Boolean).join(' · ');
+    await upsertProfile({
+      id:p.id,nombre:p.nombre,apellido1:p.apellido1,apellido2:p.apellido2||'',email,
+      edad:parseInt(document.getElementById('iEdad').value)||null,
+      altura:parseDec(document.getElementById('iAltura').value),
+      peso_inicial:parseDec(document.getElementById('iPeso').value),
+      profesion:document.getElementById('iProfesion').value.trim(),
+      talla_pantalon:document.getElementById('iTallaPantalon').value.trim(),
+      talla_camiseta:document.getElementById('iTallaCamiseta').value.trim(),
+      objetivo:document.getElementById('iObjetivo').value.trim(),
+      entrena,dias_entreno:diasEntreno,actividad,
+      pasos_aprox:parseSteps(document.getElementById('iPasosAprox').value),
+      historial_dietas:historialDietas,
+      fallo_dietas:document.getElementById('iFalloDietas').value.trim(),
+      condicion_medica:document.getElementById('iCondicion').value.trim(),
+      restricciones_alimentarias:document.getElementById('iRestricciones').value.trim(),
+      created_at:today(),
+    });
+    state.profiles=await getProfiles();
+    state.profiles.sort((a,b)=>`${a.nombre} ${a.apellido1}`.localeCompare(`${b.nombre} ${b.apellido1}`,'es'));
+    state.view='intakeDone';render();
+  };
+}
+
+function buildIntakeDone(){
+  app.innerHTML=`<div class="shell"><div class="shell-header"><span class="shell-title">trackwell</span></div><div class="shell-content" style="text-align:center;padding-top:4rem"><div style="font-size:3rem;margin-bottom:1rem">🎉</div><div style="font-family:'DM Serif Display',serif;font-size:1.6rem;margin-bottom:.5rem">¡Perfil creado!</div><div style="color:var(--muted);margin-bottom:.75rem">Tu entrenadora ya tiene toda tu información.</div><div style="color:var(--muted);margin-bottom:2rem">Ahora puedes hacer tu primer registro diario.</div><button class="btn btn-primary" id="checkinBtn" style="max-width:300px;margin:0 auto">Hacer mi primer registro →</button></div></div>`;
+  document.getElementById('checkinBtn').onclick=async()=>{
+    state.currentCheckins=await getCheckins(state.currentProfile.id);
+    state.selectedDate=today();state.view='dateConfirm';render();
   };
 }
 
