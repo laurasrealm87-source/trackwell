@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Trackwell</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f2ee;--surface:#fff;--border:#e2ddd8;
+  --accent:#c8a96e;--accent-dark:#a8843e;
+  --text:#1a1814;--muted:#8a8480;--danger:#c0392b;
+  --admin-bg:#1a1814;--admin-surface:#252118;--admin-border:#3a3530;
+  --admin-accent:#c8a96e;--admin-text:#f0ece4;--admin-muted:#7a7268;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+#app{min-height:100vh}
+.landing{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
+.landing-logo{font-family:'DM Serif Display',serif;font-size:2.8rem;color:var(--text);margin-bottom:.25rem;letter-spacing:-.02em}
+.landing-logo span{color:var(--accent);font-style:italic}
+.landing-sub{color:var(--muted);font-size:.95rem;margin-bottom:3rem;font-weight:300}
+.landing-cards{display:flex;gap:1.25rem;flex-wrap:wrap;justify-content:center;max-width:600px;width:100%}
+.landing-card{flex:1;min-width:220px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem 1.5rem;cursor:pointer;transition:all .2s;text-align:center}
+.landing-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.08);border-color:var(--accent)}
+.landing-card-icon{font-size:2rem;margin-bottom:1rem}
+.landing-card-title{font-family:'DM Serif Display',serif;font-size:1.3rem;margin-bottom:.4rem}
+.landing-card-desc{font-size:.85rem;color:var(--muted);font-weight:300}
+.landing-card.admin{background:var(--admin-bg);border-color:var(--admin-border);color:var(--admin-text)}
+.landing-card.admin .landing-card-desc{color:var(--admin-muted)}
+.shell{min-height:100vh;background:var(--bg);display:flex;flex-direction:column}
+.shell-header{background:var(--surface);border-bottom:1px solid var(--border);padding:1rem 1.5rem;display:flex;align-items:center;gap:1rem}
+.shell-header.dark{background:var(--admin-bg);border-color:var(--admin-border);color:var(--admin-text)}
+.back-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:1.1rem;padding:.25rem}
+.back-btn.light{color:var(--admin-muted)}
+.shell-title{font-family:'DM Serif Display',serif;font-size:1.3rem}
+.shell-content{flex:1;padding:2rem 1.5rem;max-width:560px;margin:0 auto;width:100%}
+.form-group{margin-bottom:1.1rem}
+.form-label{display:block;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.4rem}
+.form-label.light{color:var(--admin-muted)}
+.required{color:var(--accent);margin-left:2px}
+.form-input{width:100%;padding:.75rem 1rem;border:1px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:.95rem;background:var(--surface);color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s}
+.form-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(200,169,110,.15)}
+.form-input.dark{background:var(--admin-surface);border-color:var(--admin-border);color:var(--admin-text)}
+.form-input.dark:focus{border-color:var(--admin-accent)}
+.form-input.ghost::placeholder{color:#c0bbb5;font-style:italic}
+.form-hint{font-size:.78rem;color:var(--muted);margin-top:.25rem}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:.85rem}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.75rem 1.5rem;border-radius:10px;border:none;font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff;width:100%;margin-top:1rem}
+.btn-primary:hover{background:var(--accent-dark)}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed}
+.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+.btn-admin{background:var(--admin-accent);color:var(--admin-bg);width:100%;margin-top:1rem;font-weight:700}
+.btn-danger{background:var(--danger);color:#fff;border:none}
+.btn-sm{padding:.4rem .85rem;font-size:.8rem;border-radius:8px}
+.btn-ghost-dark{background:transparent;color:var(--admin-muted);border:1px solid var(--admin-border)}
+.alert{border-radius:10px;padding:.8rem 1rem;font-size:.88rem;margin-bottom:1rem}
+.alert-error{background:#fdf0ef;border:1px solid #f5c6c3;color:var(--danger)}
+.alert-info{background:#fdf8ef;border:1px solid #ecd9b0;color:#7a5a1e}
+.field-section{border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:1rem;background:var(--surface)}
+.field-section-title{font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.6rem}
+.admin-shell{height:100vh;background:var(--admin-bg);color:var(--admin-text);display:flex;flex-direction:column;overflow:hidden}
+.admin-nav{background:var(--admin-surface);border-bottom:1px solid var(--admin-border);padding:0 1.5rem;display:flex;align-items:center;flex-shrink:0}
+.admin-nav-logo{font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--admin-accent);padding:1rem 0;margin-right:2rem}
+.admin-nav-btn{padding:1rem 1.25rem;cursor:pointer;font-size:.88rem;font-weight:500;color:var(--admin-muted);border-bottom:2px solid transparent;transition:all .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:'DM Sans',sans-serif}
+.admin-nav-btn.active{color:var(--admin-accent);border-bottom-color:var(--admin-accent)}
+.admin-nav-logout{margin-left:auto;font-size:.82rem;color:var(--admin-muted);cursor:pointer;background:none;border:none;font-family:'DM Sans',sans-serif}
+.admin-split{display:flex;flex:1;min-height:0}
+.admin-sidebar{width:260px;flex-shrink:0;background:var(--admin-surface);border-right:1px solid var(--admin-border);overflow-y:auto}
+.admin-main{flex:1;overflow-y:auto;padding:1.5rem 2rem}
+.client-item{padding:.85rem 1.25rem;border-bottom:1px solid var(--admin-border);cursor:pointer;transition:background .12s}
+.client-item:hover{background:rgba(200,169,110,.06)}
+.client-item.selected{background:rgba(200,169,110,.12);border-left:3px solid var(--admin-accent)}
+.client-item-name{font-weight:600;font-size:.88rem;color:var(--admin-text)}
+.client-item-meta{font-size:.72rem;color:var(--admin-muted);margin-top:.15rem}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start}
+.detail-col-title{font-family:'DM Serif Display',serif;font-size:1rem;color:var(--admin-accent);margin-bottom:.85rem;padding-bottom:.4rem;border-bottom:1px solid var(--admin-border)}
+.ficha{background:var(--admin-surface);border:1px solid var(--admin-border);border-radius:12px;overflow:hidden}
+.ficha-row{display:flex;justify-content:space-between;align-items:baseline;padding:.45rem .85rem;border-bottom:1px solid rgba(58,53,48,.3);font-size:.82rem;gap:.75rem}
+.ficha-row:last-child{border-bottom:none}
+.ficha-key{color:var(--admin-muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0}
+.ficha-val{color:var(--admin-text);font-weight:500;text-align:right;word-break:break-word}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:1rem}
+.stat-card{background:var(--admin-surface);border:1px solid var(--admin-border);border-radius:10px;padding:.85rem}
+.stat-label{font-size:.7rem;color:var(--admin-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2rem}
+.stat-value{font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--admin-accent)}
+.stat-unit{font-size:.7rem;color:var(--admin-muted)}
+.data-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.data-table th{text-align:left;padding:.5rem .65rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--admin-muted);border-bottom:1px solid var(--admin-border)}
+.data-table td{padding:.5rem .65rem;border-bottom:1px solid rgba(58,53,48,.4);color:var(--admin-text);vertical-align:middle}
+.data-table tr:last-child td{border-bottom:none}
+.table-wrap{overflow-x:auto;background:var(--admin-surface);border:1px solid var(--admin-border);border-radius:10px}
+.action-btns{display:flex;gap:.4rem}
+.chart-wrap{background:var(--admin-surface);border:1px solid var(--admin-border);border-radius:10px;padding:1rem 1rem .5rem;margin-bottom:.75rem}
+.chart-title{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--admin-muted);margin-bottom:.5rem}
+.chart-wrap-light{background:#f9f6f2;border:1px solid var(--border);border-radius:10px;padding:.75rem .75rem .4rem;margin-bottom:1rem}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:1rem}
+.modal{background:var(--admin-surface);border:1px solid var(--admin-border);border-radius:16px;padding:2rem;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;color:var(--admin-text)}
+.modal-title{font-family:'DM Serif Display',serif;font-size:1.3rem;margin-bottom:1.5rem;color:var(--admin-accent)}
+.modal-confirm{background:var(--admin-surface);border:1px solid var(--admin-border);border-radius:16px;padding:2rem;width:100%;max-width:380px;color:var(--admin-text)}
+.modal-confirm-title{font-family:'DM Serif Display',serif;font-size:1.2rem;margin-bottom:.75rem;color:#e07060}
+.modal-confirm-body{font-size:.9rem;color:var(--admin-muted);margin-bottom:1.5rem;line-height:1.5}
+.section-label{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--admin-muted);margin:1.5rem 0 .75rem}
+.lookup-box{text-align:center;padding:2rem 0 1rem}
+.lookup-title{font-family:'DM Serif Display',serif;font-size:1.6rem;margin-bottom:.4rem}
+.lookup-sub{color:var(--muted);font-size:.9rem;margin-bottom:2rem;font-weight:300}
+.date-confirm-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:1.5rem}
+.date-confirm-title{font-family:'DM Serif Display',serif;font-size:1.1rem;margin-bottom:.75rem}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid rgba(200,169,110,.3);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:700px){
+  .admin-split{flex-direction:column}
+  .admin-sidebar{width:100%;border-right:none;border-bottom:1px solid var(--admin-border);max-height:200px}
+  .detail-grid{grid-template-columns:1fr}
+  .form-row,.form-row-3{grid-template-columns:1fr}
+  .landing-cards{flex-direction:column}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const SUPABASE_URL='https://bsznagjiyxdxnutbibcn.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzem5hZ2ppeXhkeG51dGJpYmNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTIzOTMsImV4cCI6MjA5NDI4ODM5M30.Tyd4TXMrivEH77UvoDqn2tWh3L77dOyiKPYxYgjyxGM';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+const ADMIN_PASSWORD='Reset2026';
+
+function norm(s){if(!s)return'';return s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'')}
+function pKey(n,a1,a2){return`${norm(n)}_${norm(a1)}_${norm(a2||'')}`}
+function fmtDate(s){if(!s)return'';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`}
+function fmtShort(s){if(!s)return'';const[y,m,d]=s.split('-');return`${d}/${m}`}
+function today(){return new Date().toISOString().split('T')[0]}
+function parseDec(v){if(v===''||v==null)return null;const n=parseFloat(String(v).replace(',','.').replace(/[^0-9.]/g,''));return isNaN(n)?null:n}
+function parseSteps(v){if(!v)return null;const n=parseInt(String(v).replace(/[^0-9]/g,''));return isNaN(n)?null:n}
+function fmtLabel(v,unit){if(unit==='pasos'){if(v>=1000)return`${(v/1000).toFixed(1).replace('.',',')}k`;return String(v)}return v%1===0?String(v):v.toFixed(1)}
+
+function findProfile(profiles,nombre,ap1,ap2){
+  const nN=norm(nombre),nA1=norm(ap1);
+  if(ap2){const found=profiles.find(p=>norm(p.nombre)===nN&&norm(p.apellido1)===nA1&&norm(p.apellido2)===norm(ap2));if(found)return{profile:found};}
+  const matches=profiles.filter(p=>norm(p.nombre)===nN&&norm(p.apellido1)===nA1);
+  if(matches.length===1)return{profile:matches[0]};
+  if(matches.length>1)return{ambiguous:true};
+  return null;
+}
+
+async function getProfiles(){const{data}=await sb.from('profiles').select('*');return data||[]}
+async function getCheckins(pid){const{data}=await sb.from('checkins').select('*').eq('profile_id',pid).order('date');return data||[]}
+async function upsertProfile(p){await sb.from('profiles').upsert(p,{onConflict:'id'})}
+async function upsertCheckin(c){await sb.from('checkins').upsert(c,{onConflict:'profile_id,date'})}
+async function deleteCheckinRow(pid,date){await sb.from('checkins').delete().eq('profile_id',pid).eq('date',date)}
+async function deleteProfileRow(id){await sb.from('profiles').delete().eq('id',id)}
+
+function outliers(vals){if(vals.length<4)return new Set();const s=[...vals].sort((a,b)=>a-b);const q1=s[Math.floor(s.length*.25)],q3=s[Math.floor(s.length*.75)],iqr=q3-q1;return new Set(vals.filter(v=>v<q1-1.5*iqr||v>q3+1.5*iqr))}
+
+function makeChart(data,unit,color,dark=true){
+  const valid=data.filter(d=>d.value!=null);
+  const missing=data.filter(d=>d.value==null).map(d=>d.date);
+  if(valid.length<2)return{svg:`<p style="color:var(--${dark?'admin-':''}muted);font-size:.82rem;padding:.5rem 0">Aún no hay suficientes datos.</p>`,missing};
+  const W=460,H=100,PL=36,PR=10,PT=14,PB=24;
+  const vals=valid.map(d=>d.value);
+  const min=Math.min(...vals),max=Math.max(...vals),range=max-min||1;
+  const out=outliers(vals);
+  const xOf=i=>PL+(i/(valid.length-1))*(W-PL-PR);
+  const yOf=v=>PT+(1-(v-min)/range)*(H-PT-PB);
+  const pts=valid.map((d,i)=>({x:xOf(i),y:yOf(d.value),v:d.value,date:d.date}));
+  const pathD=pts.map((p,i)=>`${i===0?'M':'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+  const ticks=[0,1,2].map(i=>({v:min+(range/2)*i,y:yOf(min+(range/2)*i)}));
+  const xIdx=new Set([0,pts.length-1]);
+  if(pts.length>2){const step=Math.floor(pts.length/3);for(let i=step;i<pts.length-1;i+=step)xIdx.add(i);}
+  const tc=dark?'rgba(200,180,150,0.6)':'rgba(100,90,80,0.55)';
+  const gc=dark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)';
+  const ac=dark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.08)';
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;overflow:visible">`;
+  svg+=`<line x1="${PL-4}" y1="${PT}" x2="${PL-4}" y2="${H-PB}" stroke="${ac}" stroke-width="1"/>`;
+  ticks.forEach(t=>{
+    svg+=`<line x1="${PL-4}" y1="${t.y}" x2="${W-PR}" y2="${t.y}" stroke="${gc}" stroke-width="1"/>`;
+    svg+=`<text x="${PL-10}" y="${t.y+3.5}" text-anchor="end" font-size="7" fill="${tc}">${fmtLabel(Math.round(t.v*10)/10,unit)}</text>`;
+  });
+  svg+=`<line x1="${PL-4}" y1="${H-PB+3}" x2="${W-PR}" y2="${H-PB+3}" stroke="${ac}" stroke-width="1"/>`;
+  pts.forEach((p,i)=>{if(xIdx.has(i))svg+=`<text x="${p.x}" y="${H-PB+13}" text-anchor="middle" font-size="6.5" fill="${tc}">${fmtShort(p.date)}</text>`;});
+  svg+=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round"/>`;
+  pts.forEach((p,i)=>{
+    const isOut=out.has(p.v);const dc=isOut?'#e05555':color;
+    const anchor=i===0?'start':i===pts.length-1?'end':'middle';
+    svg+=`<circle cx="${p.x}" cy="${p.y}" r="${isOut?4.5:3}" fill="${dc}"/>`;
+    if(isOut)svg+=`<circle cx="${p.x}" cy="${p.y}" r="7" fill="none" stroke="#e05555" stroke-width="1" opacity="0.5"/>`;
+    svg+=`<text x="${p.x}" y="${p.y-6}" text-anchor="${anchor}" font-size="7" fill="${isOut?'#e05555':color}" opacity="0.9">${fmtLabel(p.v,unit)}</text>`;
+  });
+  svg+='</svg>';
+  return{svg,missing};
+}
+
+const SEED_PROFILES=[
+  {id:'tamara_nunez_',nombre:'Tamara',apellido1:'Nuñez',apellido2:'',email:'tamidealba@gmail.com',altura:158,peso_inicial:74.0,created_at:'2026-04-01',edad:40,talla_pantalon:'42',talla_camiseta:'',objetivo:'Bajar 2 tallas',actividad:'10.000 pasos diarios',entrena:'No',dias_entreno:'',pasos_aprox:10000,historial_dietas:'Sí',fallo_dietas:'No sé',condicion_medica:'No',restricciones_alimentarias:'Ninguna',profesion:''},
+  {id:'marta_menendez_tarano',nombre:'Marta',apellido1:'Menéndez',apellido2:'Tárano',email:'martatarano@gmail.com',altura:159,peso_inicial:66.3,created_at:'2026-04-01',edad:39,talla_pantalon:'38-40',talla_camiseta:'L',objetivo:'Bajar 15 kg, talla 34-36, perder grasa abdominal',actividad:'Clases post-parto 2 días/sem · Media 11.000-12.000 pasos',entrena:'Sí',dias_entreno:'2',pasos_aprox:11500,historial_dietas:'Sí',fallo_dietas:'Pandemia y abandono posterior',condicion_medica:'Ninguna',restricciones_alimentarias:'No le gustan: salmón, alcachofas, coliflor, brócoli, espinacas hervidas',profesion:'Profesora'},
+  {id:'aida_quintana_',nombre:'Aida',apellido1:'Quintana',apellido2:'',email:'aidaquntn@gmail.com',altura:158,peso_inicial:80.8,created_at:'2026-04-01',edad:35,talla_pantalon:'42',talla_camiseta:'L',objetivo:'Entrar en talla 40',actividad:'Aquagym martes y jueves · Aprox 3.000 pasos',entrena:'Sí',dias_entreno:'2',pasos_aprox:3000,historial_dietas:'Sí',fallo_dietas:'Constancia, se aburría',condicion_medica:'Ninguna',restricciones_alimentarias:'Ninguna',profesion:'Profesora'},
+  {id:'gema_hidalgo_',nombre:'Gema',apellido1:'Hidalgo',apellido2:'',email:'gehimova@gmail.com',altura:176,peso_inicial:76.0,created_at:'2026-04-07',edad:53,talla_pantalon:'42',talla_camiseta:'L',objetivo:'Cambio físico, bajar a 67 kg',actividad:'Entreno intermitente · Actualmente aprox 4 km/día',entrena:'Intermitente',dias_entreno:'',pasos_aprox:4000,historial_dietas:'Sí',fallo_dietas:'Efecto rebote al volver a la normalidad',condicion_medica:'Lipedema',restricciones_alimentarias:'Le cuesta carne (solo pollo muy aderezado) · Poco pescado',profesion:''},
+  {id:'dana_diez_prieto',nombre:'Dana',apellido1:'Diez',apellido2:'Prieto',email:'diezprieto2014@gmail.com',altura:164,peso_inicial:68.0,created_at:'2026-04-11',edad:41,talla_pantalon:'42',talla_camiseta:'L',objetivo:'Kilos, talla y cambio físico',actividad:'Fuerza 3 días/sem',entrena:'Sí',dias_entreno:'3',pasos_aprox:null,historial_dietas:'Sí',fallo_dietas:'Saltarse un día, poca paciencia',condicion_medica:'TGA, Sertralina 0.75',restricciones_alimentarias:'Sin frutos rojos, pepino, tofu, soja texturizada',profesion:'Militar'},
+  {id:'irene_martinez_',nombre:'Irene',apellido1:'Martínez',apellido2:'',email:'m.alvarez.irene@gmail.com',altura:161,peso_inicial:67.5,created_at:'2026-04-14',edad:39,talla_pantalon:'42',talla_camiseta:'S-M',objetivo:'-10 kg, bajar 2 tallas, perder grasa abdomen, glúteo y muslos',actividad:'Entreno leve 2 días/sem (lesión rodilla) · 3.000-4.000 pasos/día',entrena:'Sí',dias_entreno:'2',pasos_aprox:3500,historial_dietas:'Nunca ha acabado ninguna',fallo_dietas:'Falta de constancia, hambre, poco seguimiento',condicion_medica:'Intolerancia a la lactosa, lipedema',restricciones_alimentarias:'Sin lactosa',profesion:'Directora'},
+  {id:'mireia_prous_',nombre:'Mireia',apellido1:'Prous',apellido2:'',email:'m_prous@hotmail.com',altura:164,peso_inicial:65.0,created_at:'2026-04-14',edad:47,talla_pantalon:'40',talla_camiseta:'M',objetivo:'60 kg, volver a talla 36-38',actividad:'Fuerza mínimo 3 veces/sem',entrena:'Sí',dias_entreno:'3',pasos_aprox:null,historial_dietas:'Sí',fallo_dietas:'Metabolismo lento',condicion_medica:'Ninguna',restricciones_alimentarias:'Ninguna',profesion:'Administrativa'},
+  {id:'alejandra_cortes_bodoque',nombre:'Alejandra',apellido1:'Cortés',apellido2:'Bodoque',email:'chica_cu14@hotmail.com',altura:175,peso_inicial:81.0,created_at:'2026-04-24',edad:35,talla_pantalon:'40-42',talla_camiseta:'M-L',objetivo:'Bajar 12 kg, perder grasa, aprender a comer',actividad:'Bici, pesas o andar · Aprox 5.000 pasos en día normal',entrena:'Sí',dias_entreno:'Variable',pasos_aprox:5000,historial_dietas:'Sí',fallo_dietas:'No son sostenibles',condicion_medica:'Endometriosis',restricciones_alimentarias:'Ninguna',profesion:'Empresaria/hotelera'},
+  {id:'macarena_espinilla_',nombre:'Macarena',apellido1:'Espinilla',apellido2:'',email:'macarena.espinilla@gmail.com',altura:169,peso_inicial:61.5,created_at:'2026-05-01',edad:43,talla_pantalon:'38',talla_camiseta:'S',objetivo:'Bajar kilos y talla, que duelan menos las piernas',actividad:'No entrena · 7.000 pasos/día',entrena:'No',dias_entreno:'0',pasos_aprox:7000,historial_dietas:'Sí',fallo_dietas:'Ansiedad y come',condicion_medica:'Lipedema',restricciones_alimentarias:'No cocina mucho, comida sencilla',profesion:'Docente'},
+  {id:'virginia__',nombre:'Virginia',apellido1:'',apellido2:'',email:'zbvirginia@gmail.com',altura:170,peso_inicial:64.5,created_at:'2026-05-04',edad:45,talla_pantalon:'36-38',talla_camiseta:'S-M',objetivo:'Bajar a 58 kg, perder grasa',actividad:'No entrena ni camina · Quiere empezar',entrena:'No',dias_entreno:'0',pasos_aprox:null,historial_dietas:'Sí',fallo_dietas:'Se relaja cuando se ve bien',condicion_medica:'Ninguna',restricciones_alimentarias:'Desayunos tipo tostada con huevo/pavo · No batidos',profesion:''},
+  {id:'alona_zubeldia_',nombre:'Aloña',apellido1:'Zubeldia',apellido2:'',email:'alozubeldia3@gmail.com',altura:168,peso_inicial:64.0,created_at:'2026-05-04',edad:44,talla_pantalon:'38-40',talla_camiseta:'S',objetivo:'Bajar una talla de pantalón y 5-6 kg',actividad:'En este momento no entrena',entrena:'No',dias_entreno:'0',pasos_aprox:null,historial_dietas:'Sí',fallo_dietas:'No especifica',condicion_medica:'Intolerancia al gluten',restricciones_alimentarias:'Sin gluten',profesion:'Policía Municipal'},
+  {id:'patricia_martin_bartolome',nombre:'Patricia',apellido1:'Martin',apellido2:'Bartolome',email:'patricia.martin.bartolome@gmail.com',altura:162,peso_inicial:66.0,created_at:'2026-05-07',edad:45,talla_pantalon:'38 / M',talla_camiseta:'S-XS',objetivo:'Perder 5 kg, definir',actividad:'Fuerza con entrenador personal 2-3 días/sem · Corre 2 días · Media 9.500 pasos',entrena:'Sí',dias_entreno:'3',pasos_aprox:9500,historial_dietas:'Sí',fallo_dietas:'Restricciones no sostenibles',condicion_medica:'Lipedema, SIBO',restricciones_alimentarias:'Evita gluten, azúcar refinado y alimentos altos en FODMAPs',profesion:'Arquitecta'},
+  {id:'nuria_mancebo_turiel',nombre:'Nuria',apellido1:'Mancebo',apellido2:'Turiel',email:'nuribcn82@hotmail.com',altura:163,peso_inicial:67.0,created_at:'2026-05-07',edad:43,talla_pantalon:'38-40',talla_camiseta:'S-M',objetivo:'Perder volumen en piernas, bajar a 58 kg aprox',actividad:'Aprox 6.000 pasos/día',entrena:'No',dias_entreno:'0',pasos_aprox:6000,historial_dietas:'No',fallo_dietas:'',condicion_medica:'Alergia a langostinos/gambas',restricciones_alimentarias:'Sin langostinos/gambas · No le gusta la berenjena',profesion:'Administrativa'},
+  {id:'irene_esclapez_',nombre:'Irene',apellido1:'Esclapez',apellido2:'',email:'irene_esem@hormail.com',altura:162,peso_inicial:72.5,created_at:'2026-05-08',edad:34,talla_pantalon:'42',talla_camiseta:'M',objetivo:'Bajar 5-6 kg (objetivo largo plazo: 10 kg)',actividad:'Anda 30 min casi a diario · Fuerza fines de semana · Aprox 10.000 pasos',entrena:'Sí',dias_entreno:'2',pasos_aprox:10000,historial_dietas:'Sí',fallo_dietas:'No medir cantidades',condicion_medica:'Helicobacter Pylori',restricciones_alimentarias:'Sin quinoa · Poco gluten',profesion:'Maestra'},
+  {id:'regina_santamaria_',nombre:'Regina',apellido1:'Santamaria',apellido2:'',email:'reginasserra@gmail.com',altura:167,peso_inicial:63.0,created_at:'2026-05-10',edad:40,talla_pantalon:'38-40',talla_camiseta:'S',objetivo:'Bajar volumen y unos 5 kg',actividad:'Entrena 4-5 días/sem',entrena:'Sí',dias_entreno:'5',pasos_aprox:null,historial_dietas:'Sí',fallo_dietas:'Constancia y organización',condicion_medica:'Ninguna',restricciones_alimentarias:'No come cordero ni cerdo',profesion:'Consultoría'},
+  {id:'laura_ruiz_cortes',nombre:'Laura',apellido1:'Ruiz',apellido2:'Cortes',email:'laura.ruizcortes@gmail.com',altura:170,peso_inicial:70.0,created_at:'2026-05-10',edad:46,talla_pantalon:'38-40',talla_camiseta:'',objetivo:'Perder mucha grasa, bajar talla, al menos 5 kg',actividad:'Body Pump 2 veces/sem · Media 12.000 pasos/día',entrena:'Sí',dias_entreno:'2',pasos_aprox:12000,historial_dietas:'Sí',fallo_dietas:'Pierde pero no mantiene',condicion_medica:'Lipedema',restricciones_alimentarias:'No come carne',profesion:'Consultora'},
+  {id:'alejandra_baranda_',nombre:'Alejandra',apellido1:'Baranda',apellido2:'',email:'alejandracarlota.baranda@gmail.com',altura:163,peso_inicial:74.0,created_at:'2026-05-11',edad:39,talla_pantalon:'40-42',talla_camiseta:'L',objetivo:'Bajar 10 kg, 2 tallas, perder volumen en piernas, desinflarse',actividad:'Crossfit 2-3 veces/sem',entrena:'Sí',dias_entreno:'3',pasos_aprox:null,historial_dietas:'Sí',fallo_dietas:'No ver resultados y desmotivarse',condicion_medica:'Crohn',restricciones_alimentarias:'Crohn',profesion:'Diseñadora'},
+];
+
+const SEED_CHECKINS=[
+  {profile_id:'aida_quintana_',date:'2026-04-23',weight:75.6,steps:12830,waist:null,hip:null,thigh:null},{profile_id:'aida_quintana_',date:'2026-04-24',weight:75.3,steps:7264,waist:null,hip:null,thigh:null},{profile_id:'aida_quintana_',date:'2026-04-25',weight:75.3,steps:11828,waist:null,hip:null,thigh:null},{profile_id:'aida_quintana_',date:'2026-04-26',weight:75.1,steps:7683,waist:null,hip:null,thigh:null},{profile_id:'aida_quintana_',date:'2026-04-27',weight:null,steps:12721,waist:null,hip:null,thigh:null},{profile_id:'aida_quintana_',date:'2026-04-28',weight:78,steps:9414,waist:null,hip:null,thigh:null},{profile_id:'aida_quintana_',date:'2026-04-30',weight:74.8,steps:9512,waist:null,hip:null,thigh:null},{profile_id:'aida_quintana_',date:'2026-05-09',weight:73.5,steps:11177,waist:null,hip:null,thigh:null},
+  {profile_id:'tamara_nunez_',date:'2026-04-24',weight:73.25,steps:7195,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-04-25',weight:72.8,steps:8992,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-04-26',weight:72.8,steps:11980,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-04-27',weight:72.35,steps:10900,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-04-28',weight:72.8,steps:11119,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-04-29',weight:72.8,steps:13173,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-04-30',weight:72.8,steps:11119,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-05-01',weight:72.8,steps:5444,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-05-02',weight:72.05,steps:15550,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-05-03',weight:72.05,steps:5728,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-05-04',weight:72.05,steps:10036,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-05-05',weight:72.05,steps:10593,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-05-06',weight:72.05,steps:14635,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-05-07',weight:71.55,steps:10745,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-05-08',weight:71.55,steps:1732,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-05-09',weight:71.85,steps:10724,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-05-10',weight:71.85,steps:6600,waist:null,hip:null,thigh:null},{profile_id:'tamara_nunez_',date:'2026-05-11',weight:72.1,steps:13240,waist:null,hip:null,thigh:null},
+  {profile_id:'marta_menendez_tarano',date:'2026-04-24',weight:64.5,steps:17407,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-04-25',weight:64.6,steps:12992,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-04-26',weight:64.6,steps:8858,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-04-27',weight:64.2,steps:13274,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-04-28',weight:64.3,steps:15640,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-04-30',weight:63.5,steps:15082,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-05-01',weight:63.4,steps:8690,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-05-02',weight:64.5,steps:16832,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-05-03',weight:63.8,steps:11105,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-05-04',weight:63.8,steps:19474,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-05-05',weight:63.2,steps:16431,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-05-06',weight:63.1,steps:16485,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-05-07',weight:62.8,steps:16484,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-05-08',weight:62.5,steps:11727,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-05-09',weight:62.8,steps:11334,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-05-10',weight:62.8,steps:12358,waist:null,hip:null,thigh:null},{profile_id:'marta_menendez_tarano',date:'2026-05-11',weight:63.0,steps:8416,waist:null,hip:null,thigh:null},
+  {profile_id:'mireia_prous_',date:'2026-04-24',weight:62.8,steps:13161,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-04-25',weight:62.8,steps:3668,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-04-26',weight:62.4,steps:6239,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-04-27',weight:62.6,steps:8818,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-04-28',weight:62.35,steps:11181,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-04-29',weight:62.2,steps:12699,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-04-30',weight:62.35,steps:14487,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-05-01',weight:62.35,steps:2130,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-05-03',weight:62.30,steps:10774,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-05-04',weight:62.20,steps:8970,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-05-05',weight:61.19,steps:9670,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-05-06',weight:61.75,steps:8937,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-05-07',weight:61.65,steps:12338,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-05-08',weight:61.15,steps:12336,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-05-09',weight:60.80,steps:8801,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-05-10',weight:60.9,steps:7400,waist:null,hip:null,thigh:null},{profile_id:'mireia_prous_',date:'2026-05-11',weight:61.35,steps:null,waist:null,hip:null,thigh:null},
+  {profile_id:'irene_martinez_',date:'2026-04-23',weight:66.9,steps:9260,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-04-24',weight:66.7,steps:9660,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-04-25',weight:66.7,steps:8977,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-04-26',weight:67.0,steps:9170,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-04-27',weight:67.05,steps:10257,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-04-28',weight:66.05,steps:5669,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-04-29',weight:64.9,steps:7341,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-04-30',weight:63.0,steps:9139,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-05-02',weight:null,steps:10492,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-05-03',weight:null,steps:5888,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-05-04',weight:66.6,steps:8140,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-05-05',weight:66.25,steps:7647,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-05-06',weight:65.85,steps:6452,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-05-07',weight:65.55,steps:null,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-05-08',weight:65.85,steps:8137,waist:null,hip:null,thigh:null},{profile_id:'irene_martinez_',date:'2026-05-11',weight:64.4,steps:8910,waist:null,hip:null,thigh:null},
+  {profile_id:'irene_esclapez_',date:'2026-05-11',weight:72.0,steps:5780,waist:null,hip:null,thigh:null},
+  {profile_id:'alejandra_cortes_bodoque',date:'2026-04-27',weight:null,steps:10497,waist:null,hip:null,thigh:null},{profile_id:'alejandra_cortes_bodoque',date:'2026-04-28',weight:81.4,steps:11294,waist:null,hip:null,thigh:null},{profile_id:'alejandra_cortes_bodoque',date:'2026-04-29',weight:80.55,steps:10176,waist:null,hip:null,thigh:null},{profile_id:'alejandra_cortes_bodoque',date:'2026-04-30',weight:79.9,steps:7500,waist:null,hip:null,thigh:null},{profile_id:'alejandra_cortes_bodoque',date:'2026-05-01',weight:80.2,steps:12180,waist:null,hip:null,thigh:null},{profile_id:'alejandra_cortes_bodoque',date:'2026-05-02',weight:null,steps:8675,waist:null,hip:null,thigh:null},{profile_id:'alejandra_cortes_bodoque',date:'2026-05-03',weight:79.30,steps:4500,waist:null,hip:null,thigh:null},{profile_id:'alejandra_cortes_bodoque',date:'2026-05-04',weight:79.15,steps:13711,waist:null,hip:null,thigh:null},{profile_id:'alejandra_cortes_bodoque',date:'2026-05-05',weight:78.75,steps:15974,waist:null,hip:null,thigh:null},{profile_id:'alejandra_cortes_bodoque',date:'2026-05-06',weight:79.00,steps:12599,waist:null,hip:null,thigh:null},{profile_id:'alejandra_cortes_bodoque',date:'2026-05-07',weight:78.65,steps:10463,waist:null,hip:null,thigh:null},{profile_id:'alejandra_cortes_bodoque',date:'2026-05-09',weight:78.40,steps:9619,waist:null,hip:null,thigh:null},{profile_id:'alejandra_cortes_bodoque',date:'2026-05-10',weight:79.0,steps:7702,waist:null,hip:null,thigh:null},{profile_id:'alejandra_cortes_bodoque',date:'2026-05-11',weight:78.90,steps:11765,waist:null,hip:null,thigh:null},
+  {profile_id:'macarena_espinilla_',date:'2026-05-05',weight:61.0,steps:11974,waist:null,hip:null,thigh:null},{profile_id:'macarena_espinilla_',date:'2026-05-06',weight:60.4,steps:11046,waist:null,hip:null,thigh:null},{profile_id:'macarena_espinilla_',date:'2026-05-07',weight:60.7,steps:13812,waist:null,hip:null,thigh:null},{profile_id:'macarena_espinilla_',date:'2026-05-08',weight:59.9,steps:10059,waist:null,hip:null,thigh:null},{profile_id:'macarena_espinilla_',date:'2026-05-09',weight:59.7,steps:4117,waist:null,hip:null,thigh:null},{profile_id:'macarena_espinilla_',date:'2026-05-10',weight:60.1,steps:6672,waist:null,hip:null,thigh:null},{profile_id:'macarena_espinilla_',date:'2026-05-11',weight:60.5,steps:7593,waist:null,hip:null,thigh:null},
+  {profile_id:'alona_zubeldia_',date:'2026-05-06',weight:63.60,steps:null,waist:null,hip:null,thigh:null},{profile_id:'alona_zubeldia_',date:'2026-05-07',weight:63.50,steps:null,waist:null,hip:null,thigh:null},{profile_id:'alona_zubeldia_',date:'2026-05-08',weight:63.25,steps:null,waist:null,hip:null,thigh:null},{profile_id:'alona_zubeldia_',date:'2026-05-09',weight:63.40,steps:null,waist:null,hip:null,thigh:null},{profile_id:'alona_zubeldia_',date:'2026-05-10',weight:63.80,steps:null,waist:null,hip:null,thigh:null},{profile_id:'alona_zubeldia_',date:'2026-05-11',weight:63.65,steps:null,waist:null,hip:null,thigh:null},
+  {profile_id:'patricia_martin_bartolome',date:'2026-05-08',weight:66.7,steps:7430,waist:null,hip:null,thigh:null},{profile_id:'patricia_martin_bartolome',date:'2026-05-09',weight:66.3,steps:8643,waist:null,hip:null,thigh:null},{profile_id:'patricia_martin_bartolome',date:'2026-05-10',weight:66.3,steps:6741,waist:null,hip:null,thigh:null},{profile_id:'patricia_martin_bartolome',date:'2026-05-11',weight:66.3,steps:13350,waist:null,hip:null,thigh:null},
+  {profile_id:'nuria_mancebo_turiel',date:'2026-05-11',weight:67.25,steps:12664,waist:null,hip:null,thigh:null},
+  {profile_id:'alejandra_baranda_',date:'2026-05-11',weight:74.0,steps:11051,waist:null,hip:null,thigh:null},
+  {profile_id:'laura_ruiz_cortes',date:'2026-05-11',weight:70.0,steps:12813,waist:null,hip:null,thigh:null},
+];
+
+let state={view:'landing',profiles:[],checkins:{},selectedProfileId:null,currentProfile:null,currentCheckins:[],selectedDate:today(),loading:false};
+const app=document.getElementById('app');
+function render(){app.innerHTML='';buildView();}
+
+async function init(){
+  render();
+  const{data:existing}=await sb.from('profiles').select('id').limit(1);
+  if(!existing||existing.length===0){
+    state.loading=true;render();
+    for(const p of SEED_PROFILES)await upsertProfile(p);
+    for(const c of SEED_CHECKINS)await upsertCheckin(c);
+  }
+  state.profiles=await getProfiles();
+  state.profiles.sort((a,b)=>`${a.nombre} ${a.apellido1}`.localeCompare(`${b.nombre} ${b.apellido1}`,'es'));
+  state.loading=false;render();
+}
+
+function buildView(){
+  if(state.loading){app.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:1rem;background:var(--bg)"><div class="spinner" style="width:32px;height:32px;border-width:3px"></div><div style="color:var(--muted);font-size:.9rem">Preparando la app por primera vez…</div></div>`;return;}
+  if(state.view==='landing')buildLanding();
+  else if(state.view==='adminLogin')buildAdminLogin();
+  else if(state.view==='admin')buildAdmin();
+  else if(state.view==='lookup')buildLookup();
+  else if(state.view==='dateConfirm')buildDateConfirm();
+  else if(state.view==='checkin')buildCheckin();
+  else if(state.view==='intake')buildIntake();
+  else if(state.view==='done')buildDone();
+}
+
+function buildLanding(){
+  app.innerHTML=`<div class="landing"><div class="landing-logo">track<span>well</span></div><div class="landing-sub">Seguimiento diario de fitness, sencillo y efectivo</div><div class="landing-cards"><div class="landing-card" id="clientBtn"><div class="landing-card-icon">📋</div><div class="landing-card-title">Registrar datos</div><div class="landing-card-desc">Introduce tus pasos y medidas del día</div></div><div class="landing-card admin" id="adminBtn"><div class="landing-card-icon">📊</div><div class="landing-card-title">Panel de entrenadora</div><div class="landing-card-desc">Ver datos de clientes y gestionar perfiles</div></div></div></div>`;
+  document.getElementById('clientBtn').onclick=()=>{state.view='lookup';render();}
+  document.getElementById('adminBtn').onclick=()=>{state.view='adminLogin';render();}
+}
+
+function buildAdminLogin(){
+  app.innerHTML=`<div class="shell" style="background:var(--admin-bg);min-height:100vh"><div class="shell-header dark"><button class="back-btn light" id="backBtn">←</button><span class="shell-title">Panel de entrenadora</span></div><div class="shell-content" style="background:var(--admin-bg)"><div style="padding-top:3rem;max-width:360px;margin:0 auto"><div style="font-family:'DM Serif Display',serif;font-size:1.5rem;color:var(--admin-accent);margin-bottom:.5rem">Bienvenida</div><div style="color:var(--admin-muted);font-size:.9rem;margin-bottom:2rem">Introduce tu contraseña para acceder</div><div id="loginError"></div><div class="form-group"><label class="form-label light">Contraseña</label><input type="password" class="form-input dark" id="pwInput"/></div><button class="btn btn-admin" id="loginBtn">Entrar al panel</button></div></div></div>`;
+  document.getElementById('backBtn').onclick=()=>{state.view='landing';render();}
+  const attempt=()=>{if(document.getElementById('pwInput').value===ADMIN_PASSWORD){state.view='admin';render();}else{document.getElementById('loginError').innerHTML='<div class="alert alert-error">Contraseña incorrecta.</div>';}};
+  document.getElementById('loginBtn').onclick=attempt;
+  document.getElementById('pwInput').onkeydown=e=>{if(e.key==='Enter')attempt();}
+  setTimeout(()=>document.getElementById('pwInput')?.focus(),50);
+}
+
+function buildAdmin(){
+  const profiles=state.profiles;
+  const sel=state.selectedProfileId?profiles.find(p=>p.id===state.selectedProfileId):null;
+  const rows=sel?state.currentCheckins:[];
+  const latest=rows[rows.length-1];
+  const colors={weight:'#c8a96e',steps:'#82c896',waist:'#8ab4c8',hip:'#b08ac8',thigh:'#c88aa0'};
+
+  const sidebarItems=profiles.map(p=>`<div class="client-item ${p.id===state.selectedProfileId?'selected':''}" data-id="${p.id}"><div class="client-item-name">${p.nombre} ${p.apellido1} ${p.apellido2||''}</div><div class="client-item-meta">${(state.checkins[p.id]||[]).length} registros</div></div>`).join('');
+
+  let mainContent='';
+  if(!sel){
+    mainContent=`<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--admin-muted);text-align:center"><div><div style="font-size:2.5rem;margin-bottom:1rem">👈</div><div>Selecciona una clienta</div></div></div>`;
+  } else {
+    const ff=[['Email',sel.email],['Edad',sel.edad?`${sel.edad} años`:'–'],['Altura',sel.altura?`${sel.altura} cm`:'–'],['Peso inicial',sel.peso_inicial?`${sel.peso_inicial} kg`:'–'],['Talla pantalón',sel.talla_pantalon||'–'],['Talla camiseta',sel.talla_camiseta||'–'],['Objetivo',sel.objetivo||'–'],['Actividad',sel.actividad||'–'],['Entrena',sel.entrena||'–'],['Pasos habituales',sel.pasos_aprox?sel.pasos_aprox.toLocaleString():'–'],['Historial dietas',sel.historial_dietas||'–'],['Qué le ha fallado',sel.fallo_dietas||'–'],['Condición médica',sel.condicion_medica||'–'],['Restricciones alim.',sel.restricciones_alimentarias||'–'],['Profesión',sel.profesion||'–']];
+    const fichaHTML=ff.map(([k,v])=>`<div class="ficha-row"><span class="ficha-key">${k}</span><span class="ficha-val">${v}</span></div>`).join('');
+    const stats=latest?`<div class="stats-grid"><div class="stat-card"><div class="stat-label">Últimos pasos</div><div class="stat-value">${latest.steps!=null?latest.steps.toLocaleString():'–'}</div><div class="stat-unit">pasos</div></div><div class="stat-card"><div class="stat-label">Último peso</div><div class="stat-value">${latest.weight??'–'}</div><div class="stat-unit">kg</div></div><div class="stat-card"><div class="stat-label">Cintura</div><div class="stat-value">${latest.waist??'–'}</div><div class="stat-unit">cm</div></div><div class="stat-card"><div class="stat-label">Cadera</div><div class="stat-value">${latest.hip??'–'}</div><div class="stat-unit">cm</div></div><div class="stat-card"><div class="stat-label">Muslo</div><div class="stat-value">${latest.thigh??'–'}</div><div class="stat-unit">cm</div></div></div>`:'';
+    function ac(field,label,unit,color){const data=rows.map(r=>({date:r.date,value:r[field]??null}));const{svg}=makeChart(data,unit,color,true);return`<div class="chart-wrap"><div class="chart-title">${label} <span style="color:var(--admin-muted)">(${unit})</span></div>${svg}</div>`;}
+    const tableRows=[...rows].reverse().map(r=>`<tr><td>${fmtDate(r.date)}</td><td>${r.steps!=null?r.steps.toLocaleString():'–'}</td><td>${r.weight??'–'}</td><td>${r.waist??'–'}</td><td>${r.hip??'–'}</td><td>${r.thigh??'–'}</td><td><div class="action-btns"><button class="btn btn-sm btn-ghost-dark editBtn" data-date="${r.date}">✏️</button><button class="btn btn-sm btn-danger delBtn" data-date="${r.date}">🗑</button></div></td></tr>`).join('');
+    mainContent=`<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem"><div style="font-family:'DM Serif Display',serif;font-size:1.6rem;color:var(--admin-accent)">${sel.nombre} ${sel.apellido1} ${sel.apellido2||''}</div><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="btn btn-sm" style="background:var(--admin-accent);color:var(--admin-bg);font-weight:700" id="addCheckinBtn">+ Añadir registro</button><button class="btn btn-sm btn-danger" id="deleteProfileBtn">Eliminar perfil</button></div></div><div class="detail-grid"><div><div class="detail-col-title">Ficha de clienta</div><div class="ficha">${fichaHTML}</div></div><div><div class="detail-col-title">Progreso</div>${stats}${ac('weight','Peso','kg',colors.weight)}${ac('steps','Pasos','pasos',colors.steps)}${ac('waist','Cintura','cm',colors.waist)}${ac('hip','Cadera','cm',colors.hip)}${ac('thigh','Muslo','cm',colors.thigh)}</div></div>${rows.length>0?`<div style="margin-top:1.5rem"><div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--admin-muted);margin-bottom:.75rem">Todos los registros</div><div class="table-wrap"><table class="data-table"><thead><tr><th>Fecha</th><th>Pasos</th><th>Peso</th><th>Cintura</th><th>Cadera</th><th>Muslo</th><th></th></tr></thead><tbody>${tableRows}</tbody></table></div></div>`:''}`;
+  }
+
+  app.innerHTML=`<div class="admin-shell"><nav class="admin-nav"><span class="admin-nav-logo">trackwell</span><button class="admin-nav-btn active">Clientes</button><button class="admin-nav-btn" id="newProfileNavBtn">+ Nuevo perfil</button><button class="admin-nav-logout" id="logoutBtn">Cerrar sesión</button></nav><div class="admin-split"><div class="admin-sidebar"><div style="padding:.75rem 1.25rem;font-size:.72rem;color:var(--admin-muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--admin-border)">${profiles.length} clientas</div>${sidebarItems}</div><div class="admin-main" id="adminMain">${mainContent}</div></div></div><div id="modalContainer"></div>`;
+
+  document.getElementById('logoutBtn').onclick=()=>{state.view='landing';state.selectedProfileId=null;render();}
+  document.getElementById('newProfileNavBtn').onclick=()=>showNewProfileModal();
+  document.querySelectorAll('.client-item').forEach(el=>{
+    el.onclick=async()=>{state.selectedProfileId=el.dataset.id;state.currentCheckins=await getCheckins(el.dataset.id);state.checkins[el.dataset.id]=state.currentCheckins;render();}
+  });
+  if(sel){
+    document.getElementById('addCheckinBtn')?.addEventListener('click',()=>showAddCheckinModal());
+    document.getElementById('deleteProfileBtn')?.addEventListener('click',()=>showConfirm('Eliminar perfil',`¿Segura que quieres eliminar el perfil de ${sel.nombre} ${sel.apellido1} y todos sus registros?`,async()=>{await deleteProfileRow(sel.id);state.profiles=await getProfiles();state.selectedProfileId=null;state.currentCheckins=[];closeModal();render();}));
+    document.querySelectorAll('.editBtn').forEach(btn=>btn.onclick=()=>{const r=rows.find(x=>x.date===btn.dataset.date);if(r)showEditModal(r);});
+    document.querySelectorAll('.delBtn').forEach(btn=>btn.onclick=()=>showConfirm('Eliminar registro',`¿Segura que quieres eliminar el registro del ${fmtDate(btn.dataset.date)}?`,async()=>{await deleteCheckinRow(sel.id,btn.dataset.date);state.currentCheckins=await getCheckins(sel.id);state.checkins[sel.id]=state.currentCheckins;closeModal();render();}));
+  }
+}
+
+function closeModal(){const mc=document.getElementById('modalContainer');if(mc)mc.innerHTML='';}
+
+function showConfirm(title,body,onConfirm){
+  document.getElementById('modalContainer').innerHTML=`<div class="modal-overlay"><div class="modal-confirm"><div class="modal-confirm-title">${title}</div><div class="modal-confirm-body">${body}</div><div style="display:flex;gap:.75rem"><button class="btn btn-ghost-dark" style="flex:1" id="cancelBtn">Cancelar</button><button class="btn btn-danger" style="flex:1" id="confirmBtn">Eliminar</button></div></div></div>`;
+  document.getElementById('cancelBtn').onclick=closeModal;
+  document.getElementById('confirmBtn').onclick=onConfirm;
+}
+
+function showNewProfileModal(){
+  document.getElementById('modalContainer').innerHTML=`<div class="modal-overlay"><div class="modal"><div class="modal-title">Nuevo perfil de clienta</div><div id="npError"></div><div class="form-row-3"><div class="form-group"><label class="form-label light">Nombre *</label><input class="form-input dark" id="npNombre"/></div><div class="form-group"><label class="form-label light">1er apellido *</label><input class="form-input dark" id="npAp1"/></div><div class="form-group"><label class="form-label light">2º apellido</label><input class="form-input dark" id="npAp2"/></div></div><div class="form-group"><label class="form-label light">Email *</label><input type="email" class="form-input dark" id="npEmail"/></div><div class="form-row"><div class="form-group"><label class="form-label light">Altura (cm)</label><input class="form-input dark" id="npAltura"/></div><div class="form-group"><label class="form-label light">Peso inicial (kg)</label><input class="form-input dark" id="npPeso"/></div></div><div class="section-label">Primer registro (opcional)</div><div class="form-group"><label class="form-label light">Fecha</label><input type="date" class="form-input dark" id="npDate" value="${today()}"/></div><div class="form-row"><div class="form-group"><label class="form-label light">Pasos</label><input class="form-input dark" id="npSteps"/></div><div class="form-group"><label class="form-label light">Peso hoy (kg)</label><input class="form-input dark" id="npWeight"/></div></div><div style="display:flex;gap:.75rem;margin-top:1rem"><button class="btn btn-ghost-dark" style="flex:1" id="npCancel">Cancelar</button><button class="btn btn-admin" style="flex:2;margin-top:0" id="npSave">Guardar perfil</button></div></div></div>`;
+  document.getElementById('npCancel').onclick=closeModal;
+  document.getElementById('npSave').onclick=async()=>{
+    const n=document.getElementById('npNombre').value.trim(),a1=document.getElementById('npAp1').value.trim(),a2=document.getElementById('npAp2').value.trim(),email=document.getElementById('npEmail').value.trim();
+    if(!n||!a1||!email){document.getElementById('npError').innerHTML='<div class="alert alert-error">Nombre, primer apellido y email son obligatorios.</div>';return;}
+    const id=pKey(n,a1,a2);
+    if(state.profiles.find(p=>p.id===id)){document.getElementById('npError').innerHTML='<div class="alert alert-error">Ya existe un perfil con ese nombre.</div>';return;}
+    await upsertProfile({id,nombre:n,apellido1:a1,apellido2:a2,email,altura:parseDec(document.getElementById('npAltura').value),peso_inicial:parseDec(document.getElementById('npPeso').value),created_at:document.getElementById('npDate').value,edad:null,talla_pantalon:'',talla_camiseta:'',objetivo:'',actividad:'',entrena:'',dias_entreno:'',pasos_aprox:null,historial_dietas:'',fallo_dietas:'',condicion_medica:'',restricciones_alimentarias:'',profesion:''});
+    const steps=parseSteps(document.getElementById('npSteps').value),w=parseDec(document.getElementById('npWeight').value);
+    if(steps||w)await upsertCheckin({profile_id:id,date:document.getElementById('npDate').value,steps,weight:w,waist:null,hip:null,thigh:null});
+    state.profiles=await getProfiles();state.profiles.sort((a,b)=>`${a.nombre} ${a.apellido1}`.localeCompare(`${b.nombre} ${b.apellido1}`,'es'));
+    closeModal();render();
+  };
+}
+
+function showAddCheckinModal(){
+  const sel=state.currentCheckins;
+  document.getElementById('modalContainer').innerHTML=`<div class="modal-overlay"><div class="modal"><div class="modal-title">Añadir registro</div><div id="acError"></div><div class="form-group"><label class="form-label light">Fecha</label><input type="date" class="form-input dark" id="acDate" value="${today()}"/></div><div class="form-row"><div class="form-group"><label class="form-label light">Pasos</label><input class="form-input dark" id="acSteps"/></div><div class="form-group"><label class="form-label light">Peso (kg)</label><input class="form-input dark" id="acWeight"/></div></div><div class="form-row"><div class="form-group"><label class="form-label light">Cintura (cm)</label><input class="form-input dark" id="acWaist"/></div><div class="form-group"><label class="form-label light">Cadera (cm)</label><input class="form-input dark" id="acHip"/></div></div><div class="form-group"><label class="form-label light">Muslo (cm)</label><input class="form-input dark" id="acThigh"/></div><div style="display:flex;gap:.75rem;margin-top:1rem"><button class="btn btn-ghost-dark" style="flex:1" id="acCancel">Cancelar</button><button class="btn btn-admin" style="flex:2;margin-top:0" id="acSave">Guardar</button></div></div></div>`;
+  document.getElementById('acCancel').onclick=closeModal;
+  document.getElementById('acSave').onclick=async()=>{
+    const date=document.getElementById('acDate').value;
+    if(sel.find(r=>r.date===date)){document.getElementById('acError').innerHTML='<div class="alert alert-error">Ya existe un registro para esta fecha.</div>';return;}
+    const sorted=[...sel].sort((a,b)=>b.date.localeCompare(a.date));const prev=sorted.find(r=>r.date<date);
+    await upsertCheckin({profile_id:state.selectedProfileId,date,steps:parseSteps(document.getElementById('acSteps').value),weight:parseDec(document.getElementById('acWeight').value)??(prev?.weight??null),waist:parseDec(document.getElementById('acWaist').value)??(prev?.waist??null),hip:parseDec(document.getElementById('acHip').value)??(prev?.hip??null),thigh:parseDec(document.getElementById('acThigh').value)??(prev?.thigh??null)});
+    state.currentCheckins=await getCheckins(state.selectedProfileId);state.checkins[state.selectedProfileId]=state.currentCheckins;closeModal();render();
+  };
+}
+
+function showEditModal(r){
+  document.getElementById('modalContainer').innerHTML=`<div class="modal-overlay"><div class="modal"><div class="modal-title">Editar — ${fmtDate(r.date)}</div><div id="erError"></div><div class="form-group"><label class="form-label light">Fecha</label><input type="date" class="form-input dark" id="erDate" value="${r.date}"/></div><div class="form-row"><div class="form-group"><label class="form-label light">Pasos</label><input class="form-input dark" id="erSteps" value="${r.steps??''}"/></div><div class="form-group"><label class="form-label light">Peso (kg)</label><input class="form-input dark" id="erWeight" value="${r.weight??''}"/></div></div><div class="form-row"><div class="form-group"><label class="form-label light">Cintura (cm)</label><input class="form-input dark" id="erWaist" value="${r.waist??''}"/></div><div class="form-group"><label class="form-label light">Cadera (cm)</label><input class="form-input dark" id="erHip" value="${r.hip??''}"/></div></div><div class="form-group"><label class="form-label light">Muslo (cm)</label><input class="form-input dark" id="erThigh" value="${r.thigh??''}"/></div><div style="display:flex;gap:.75rem;margin-top:1rem"><button class="btn btn-ghost-dark" style="flex:1" id="erCancel">Cancelar</button><button class="btn btn-admin" style="flex:2;margin-top:0" id="erSave">Guardar cambios</button></div></div></div>`;
+  document.getElementById('erCancel').onclick=closeModal;
+  document.getElementById('erSave').onclick=async()=>{
+    await deleteCheckinRow(state.selectedProfileId,r.date);
+    await upsertCheckin({profile_id:state.selectedProfileId,date:document.getElementById('erDate').value,steps:parseSteps(document.getElementById('erSteps').value),weight:parseDec(document.getElementById('erWeight').value),waist:parseDec(document.getElementById('erWaist').value),hip:parseDec(document.getElementById('erHip').value),thigh:parseDec(document.getElementById('erThigh').value)});
+    state.currentCheckins=await getCheckins(state.selectedProfileId);state.checkins[state.selectedProfileId]=state.currentCheckins;closeModal();render();
+  };
+}
+
+function buildLookup(){
+  app.innerHTML=`<div class="shell"><div class="shell-header"><button class="back-btn" id="backBtn">←</button><span class="shell-title">Registro diario</span></div><div class="shell-content"><div class="lookup-box"><div class="lookup-title">¡Hola! 👋</div><div class="lookup-sub">Introduce tu nombre para continuar</div></div><div id="lookupError"></div><div class="form-row"><div class="form-group"><label class="form-label">Nombre <span class="required">*</span></label><input class="form-input" id="nombre"/></div><div class="form-group"><label class="form-label">1er apellido <span class="required">*</span></label><input class="form-input" id="ap1"/></div></div><div class="form-group"><label class="form-label">2º apellido <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label><input class="form-input" id="ap2"/><div class="form-hint">Solo necesario si hay otra clienta con el mismo nombre y primer apellido.</div></div><button class="btn btn-primary" id="continueBtn">Continuar →</button></div></div>`;
+  document.getElementById('backBtn').onclick=()=>{state.view='landing';render();}
+  const go=async()=>{
+    const nombre=document.getElementById('nombre').value.trim(),ap1=document.getElementById('ap1').value.trim(),ap2=document.getElementById('ap2').value.trim();
+    if(!nombre||!ap1){document.getElementById('lookupError').innerHTML='<div class="alert alert-error">Introduce al menos tu nombre y primer apellido.</div>';return;}
+    const result=findProfile(state.profiles,nombre,ap1,ap2);
+    if(!result){state.currentProfile={nombre,apellido1:ap1,apellido2:ap2,id:pKey(nombre,ap1,ap2)};state.view='intake';render();}
+    else if(result.ambiguous){document.getElementById('lookupError').innerHTML='<div class="alert alert-error">Hay más de una clienta con ese nombre. Por favor añade tu segundo apellido.</div>';}
+    else{
+      if(ap2&&!result.profile.apellido2){await sb.from('profiles').update({apellido2:ap2}).eq('id',result.profile.id);state.profiles=await getProfiles();}
+      state.currentProfile=result.profile;state.currentCheckins=await getCheckins(result.profile.id);state.selectedDate=today();state.view='dateConfirm';render();
+    }
+  };
+  document.getElementById('continueBtn').onclick=go;
+  document.getElementById('ap2').onkeydown=e=>{if(e.key==='Enter')go();}
+}
+
+function buildDateConfirm(){
+  const p=state.currentProfile;
+  const existing=state.currentCheckins;
+  const prev=[...existing].sort((a,b)=>b.date.localeCompare(a.date))[0]||null;
+  app.innerHTML=`<div class="shell"><div class="shell-header"><button class="back-btn" id="backBtn">←</button><span class="shell-title">¡Hola, ${p.nombre}! 👋</span></div><div class="shell-content"><div class="date-confirm-box"><div class="date-confirm-title">¿Para qué día es este registro?</div><div class="form-group" style="margin-bottom:.75rem"><input type="date" class="form-input" id="selDate" value="${state.selectedDate}" max="${today()}"/></div><div id="dateError"></div><div style="font-size:.83rem;color:var(--muted);margin-bottom:1rem">Por defecto es hoy. Puedes cambiarlo si introduces datos de un día anterior sin registro.</div><button class="btn btn-primary" style="margin-top:0" id="continueBtn">Continuar →</button></div>${prev?`<div class="alert alert-info" style="font-size:.82rem">Último registro: ${fmtDate(prev.date)} · ${prev.steps!=null?prev.steps.toLocaleString():'–'} pasos · ${prev.weight??'–'} kg</div>`:''}</div></div>`;
+  document.getElementById('backBtn').onclick=()=>{state.view='lookup';render();}
+  document.getElementById('continueBtn').onclick=()=>{
+    const d=document.getElementById('selDate').value;
+    if(!d){document.getElementById('dateError').innerHTML='<div class="alert alert-error">Selecciona una fecha.</div>';return;}
+    if(d>today()){document.getElementById('dateError').innerHTML='<div class="alert alert-error">No puedes registrar datos de fechas futuras.</div>';return;}
+    if(existing.find(r=>r.date===d)){document.getElementById('dateError').innerHTML=`<div class="alert alert-error">Ya existe un registro para el ${fmtDate(d)}. No se puede modificar.</div>`;return;}
+    state.selectedDate=d;state.view='checkin';render();
+  };
+}
+
+function buildCheckin(){
+  const p=state.currentProfile;
+  const rows=[...state.currentCheckins].sort((a,b)=>a.date.localeCompare(b.date));
+  const prev=[...rows].reverse()[0]||null;
+  const colors={steps:'#82c896',weight:'#c8a96e',waist:'#8ab4c8',hip:'#b08ac8',thigh:'#c88aa0'};
+
+  function clientChart(field,unit,color){
+    const data=rows.map(r=>({date:r.date,value:r[field]??null}));
+    const{svg,missing}=makeChart(data,unit,color,false);
+    const missingHTML=missing.length?`<div style="font-size:.68rem;color:#b08040;margin-top:.2rem"><span style="background:#e8d9b8;border-radius:3px;padding:1px 4px;margin-right:4px">Sin dato</span>${missing.map(d=>fmtShort(d)).join(', ')}</div>`:'';
+    return`<div style="margin-top:.75rem"><div class="chart-wrap-light">${svg}${missingHTML}</div></div>`;
+  }
+
+  function fieldBlock(id,label,field,unit,color,required=false,hint=''){
+    const lastVal=prev?.[field];
+    const ph=lastVal!=null?`Último: ${lastVal}`:(required?'ej. 8000':'opcional');
+    const hasData=rows.filter(r=>r[field]!=null).length>=2;
+    return`<div class="field-section"><div class="field-section-title">${label}${required?' <span style="color:var(--accent)">*</span>':''}</div><input class="form-input${lastVal!=null?' ghost':''}" id="${id}" placeholder="${ph}" inputmode="${field==='steps'?'numeric':'decimal'}"/>${hint?`<div class="form-hint">${hint}</div>`:''}${hasData?clientChart(field,unit,color):''}</div>`;
+  }
+
+  app.innerHTML=`<div class="shell"><div class="shell-header"><button class="back-btn" id="backBtn">←</button><span class="shell-title">Registro del ${fmtDate(state.selectedDate)}</span></div><div class="shell-content"><div id="checkinError"></div>${fieldBlock('steps','Pasos','steps','pasos',colors.steps,true)}${fieldBlock('weight','Peso (kg)','weight','kg',colors.weight)}${fieldBlock('waist','Cintura (cm)','waist','cm',colors.waist)}${fieldBlock('hip','Cadera (cm)','hip','cm',colors.hip)}${fieldBlock('thigh','Muslo (cm)','thigh','cm',colors.thigh,false,'Si lo dejas vacío, se conservará la última medida registrada.')}<button class="btn btn-primary" id="saveBtn">Guardar registro →</button></div></div>`;
+
+  document.getElementById('backBtn').onclick=()=>{state.view='dateConfirm';render();}
+  document.getElementById('saveBtn').onclick=async()=>{
+    const steps=parseSteps(document.getElementById('steps').value);
+    if(!steps){document.getElementById('checkinError').innerHTML='<div class="alert alert-error">Los pasos son obligatorios.</div>';return;}
+    const btn=document.getElementById('saveBtn');btn.disabled=true;btn.innerHTML='<div class="spinner"></div>';
+    const prevEntry=[...rows].filter(r=>r.date<state.selectedDate).pop()||null;
+    await upsertCheckin({profile_id:p.id,date:state.selectedDate,steps,weight:parseDec(document.getElementById('weight').value)??(prevEntry?.weight??null),waist:parseDec(document.getElementById('waist').value)??(prevEntry?.waist??null),hip:parseDec(document.getElementById('hip').value)??(prevEntry?.hip??null),thigh:parseDec(document.getElementById('thigh').value)??(prevEntry?.thigh??null)});
+    state.view='done';render();
+  };
+}
+
+function buildIntake(){
+  const p=state.currentProfile;
+  app.innerHTML=`<div class="shell"><div class="shell-header"><button class="back-btn" id="backBtn">←</button><span class="shell-title">¡Bienvenida, ${p.nombre}!</span></div><div class="shell-content"><div class="alert alert-info">No encontramos tu perfil. Vamos a crearlo.</div><div id="intakeError"></div><div style="font-family:'DM Serif Display',serif;font-size:1.1rem;margin:1.5rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">Tus datos</div><div class="form-group"><label class="form-label">Email <span class="required">*</span></label><input type="email" class="form-input" id="iEmail"/></div><div class="form-group"><label class="form-label">Altura (cm)</label><input class="form-input" id="iAltura" placeholder="ej. 165"/></div><div style="font-family:'DM Serif Display',serif;font-size:1.1rem;margin:1.5rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">Registro de hoy</div><div class="form-group"><label class="form-label">Pasos <span class="required">*</span></label><input class="form-input" id="iSteps" placeholder="ej. 8000" inputmode="numeric"/></div><div class="form-row"><div class="form-group"><label class="form-label">Peso (kg)</label><input class="form-input" id="iWeight" placeholder="ej. 68,5" inputmode="decimal"/></div><div class="form-group"><label class="form-label">Cintura (cm)</label><input class="form-input" id="iWaist" placeholder="ej. 72" inputmode="decimal"/></div></div><div class="form-row"><div class="form-group"><label class="form-label">Cadera (cm)</label><input class="form-input" id="iHip" placeholder="ej. 98" inputmode="decimal"/></div><div class="form-group"><label class="form-label">Muslo (cm)</label><input class="form-input" id="iThigh" placeholder="ej. 54" inputmode="decimal"/></div></div><button class="btn btn-primary" id="saveBtn">Enviar →</button></div></div>`;
+  document.getElementById('backBtn').onclick=()=>{state.view='lookup';render();}
+  document.getElementById('saveBtn').onclick=async()=>{
+    const email=document.getElementById('iEmail').value.trim();
+    if(!email){document.getElementById('intakeError').innerHTML='<div class="alert alert-error">El email es obligatorio.</div>';return;}
+    const btn=document.getElementById('saveBtn');btn.disabled=true;btn.innerHTML='<div class="spinner"></div>';
+    await upsertProfile({id:p.id,nombre:p.nombre,apellido1:p.apellido1,apellido2:p.apellido2||'',email,altura:parseDec(document.getElementById('iAltura').value),peso_inicial:parseDec(document.getElementById('iWeight').value),created_at:today(),edad:null,talla_pantalon:'',talla_camiseta:'',objetivo:'',actividad:'',entrena:'',dias_entreno:'',pasos_aprox:null,historial_dietas:'',fallo_dietas:'',condicion_medica:'',restricciones_alimentarias:'',profesion:''});
+    await upsertCheckin({profile_id:p.id,date:today(),steps:parseSteps(document.getElementById('iSteps').value),weight:parseDec(document.getElementById('iWeight').value),waist:parseDec(document.getElementById('iWaist').value),hip:parseDec(document.getElementById('iHip').value),thigh:parseDec(document.getElementById('iThigh').value)});
+    state.profiles=await getProfiles();state.view='done';render();
+  };
+}
+
+function buildDone(){
+  app.innerHTML=`<div class="shell"><div class="shell-header"><span class="shell-title">trackwell</span></div><div class="shell-content" style="text-align:center;padding-top:4rem"><div style="font-size:3rem;margin-bottom:1rem">✅</div><div style="font-family:'DM Serif Display',serif;font-size:1.6rem;margin-bottom:.5rem">¡Guardado!</div><div style="color:var(--muted);margin-bottom:2rem">Tu registro ha sido guardado. ¡Hasta mañana!</div><button class="btn btn-secondary" id="backBtn" style="width:auto">Volver al inicio</button></div></div>`;
+  document.getElementById('backBtn').onclick=()=>{state.view='landing';state.currentProfile=null;state.currentCheckins=[];render();}
+}
+
+init();
+</script>
+</body>
+</html>
