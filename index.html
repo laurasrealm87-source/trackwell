@@ -243,6 +243,20 @@ async function init(){
   }
   state.profiles=await getProfiles();
   state.profiles.sort((a,b)=>`${a.nombre} ${a.apellido1}`.localeCompare(`${b.nombre} ${b.apellido1}`,'es'));
+  // Pre-load checkin counts for sidebar
+  const{data:allCheckins}=await sb.from('checkins').select('profile_id');
+  if(allCheckins){
+    allCheckins.forEach(c=>{
+      if(!state.checkins[c.profile_id])state.checkins[c.profile_id]=[];
+      // We only need the count here, actual data loads on click
+    });
+    // Count per profile
+    const counts={};
+    allCheckins.forEach(c=>{counts[c.profile_id]=(counts[c.profile_id]||0)+1;});
+    Object.keys(counts).forEach(pid=>{
+      if(!state.checkins[pid])state.checkins[pid]=new Array(counts[pid]);
+    });
+  }
   state.loading=false;render();
 }
 
