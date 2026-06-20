@@ -97,6 +97,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .chart-wrap{background:var(--admin-surface);border:1px solid var(--admin-border);border-radius:10px;padding:1rem 1rem .5rem;margin-bottom:.75rem}
 .chart-title{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--admin-muted);margin-bottom:.5rem}
 .chart-wrap-light{background:#f9f6f2;border:1px solid var(--border);border-radius:10px;padding:.75rem .75rem .4rem;margin-bottom:1rem}
+.chart-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.chart-scroll::-webkit-scrollbar{height:5px}
+.chart-scroll::-webkit-scrollbar-thumb{background:rgba(150,130,100,.35);border-radius:3px}
+.chart-scroll::-webkit-scrollbar-track{background:transparent}
+.chart-scroll-hint{font-size:.68rem;color:var(--muted);margin-top:.3rem;display:flex;align-items:center;gap:.3rem}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:1rem}
 .modal{background:var(--admin-surface);border:1px solid var(--admin-border);border-radius:16px;padding:2rem;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;color:var(--admin-text)}
 .modal-title{font-family:'DM Serif Display',serif;font-size:1.3rem;margin-bottom:1.5rem;color:var(--admin-accent)}
@@ -158,39 +163,43 @@ function outliers(vals){if(vals.length<4)return new Set();const s=[...vals].sort
 function makeChart(data,unit,color,dark=true){
   const valid=data.filter(d=>d.value!=null);
   const missing=data.filter(d=>d.value==null).map(d=>d.date);
-  if(valid.length<2)return{svg:`<p style="color:var(--${dark?'admin-':''}muted);font-size:.82rem;padding:.5rem 0">Aún no hay suficientes datos.</p>`,missing};
-  const W=460,H=100,PL=36,PR=10,PT=14,PB=24;
+  if(valid.length<2)return{svg:`<p style="color:var(--${dark?'admin-':''}muted);font-size:.82rem;padding:.5rem 0">Aún no hay suficientes datos.</p>`,missing,scrollable:false};
+  const H=100,PL=36,PR=14,PT=14,PB=24;
+  const SPACING=26; // px fijos por punto — evita que se amontonen al crecer el histórico
+  const minLabelGap=34;
+  const plotW=(valid.length-1)*SPACING;
+  const W=PL+plotW+PR;
   const vals=valid.map(d=>d.value);
   const min=Math.min(...vals),max=Math.max(...vals),range=max-min||1;
   const out=outliers(vals);
-  const xOf=i=>PL+(i/(valid.length-1))*(W-PL-PR);
+  const xOf=i=>PL+i*SPACING;
   const yOf=v=>PT+(1-(v-min)/range)*(H-PT-PB);
   const pts=valid.map((d,i)=>({x:xOf(i),y:yOf(d.value),v:d.value,date:d.date}));
   const pathD=pts.map((p,i)=>`${i===0?'M':'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
   const ticks=[0,1,2].map(i=>({v:min+(range/2)*i,y:yOf(min+(range/2)*i)}));
-  const xIdx=new Set([0,pts.length-1]);
-  if(pts.length>2){const step=Math.floor(pts.length/3);for(let i=step;i<pts.length-1;i+=step)xIdx.add(i);}
+  const xIdx=new Set();let lastLabelX=-Infinity;
+  pts.forEach((p,i)=>{if(i===0||i===pts.length-1||p.x-lastLabelX>=minLabelGap){xIdx.add(i);lastLabelX=p.x;}});
   const tc=dark?'rgba(200,180,150,0.6)':'rgba(100,90,80,0.55)';
   const gc=dark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)';
-  const ac=dark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.08)';
-  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;overflow:visible">`;
-  svg+=`<line x1="${PL-4}" y1="${PT}" x2="${PL-4}" y2="${H-PB}" stroke="${ac}" stroke-width="1"/>`;
+  const acol=dark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.08)';
+  let inner=`<line x1="${PL-4}" y1="${PT}" x2="${PL-4}" y2="${H-PB}" stroke="${acol}" stroke-width="1"/>`;
   ticks.forEach(t=>{
-    svg+=`<line x1="${PL-4}" y1="${t.y}" x2="${W-PR}" y2="${t.y}" stroke="${gc}" stroke-width="1"/>`;
-    svg+=`<text x="${PL-10}" y="${t.y+3.5}" text-anchor="end" font-size="7" fill="${tc}">${fmtLabel(Math.round(t.v*10)/10,unit)}</text>`;
+    inner+=`<line x1="${PL-4}" y1="${t.y}" x2="${W-PR}" y2="${t.y}" stroke="${gc}" stroke-width="1"/>`;
+    inner+=`<text x="${PL-10}" y="${t.y+3.5}" text-anchor="end" font-size="7" fill="${tc}">${fmtLabel(Math.round(t.v*10)/10,unit)}</text>`;
   });
-  svg+=`<line x1="${PL-4}" y1="${H-PB+3}" x2="${W-PR}" y2="${H-PB+3}" stroke="${ac}" stroke-width="1"/>`;
-  pts.forEach((p,i)=>{if(xIdx.has(i))svg+=`<text x="${p.x}" y="${H-PB+13}" text-anchor="middle" font-size="6.5" fill="${tc}">${fmtShort(p.date)}</text>`;});
-  svg+=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round"/>`;
+  inner+=`<line x1="${PL-4}" y1="${H-PB+3}" x2="${W-PR}" y2="${H-PB+3}" stroke="${acol}" stroke-width="1"/>`;
+  pts.forEach((p,i)=>{if(xIdx.has(i))inner+=`<text x="${p.x}" y="${H-PB+13}" text-anchor="middle" font-size="6.5" fill="${tc}">${fmtShort(p.date)}</text>`;});
+  inner+=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round"/>`;
   pts.forEach((p,i)=>{
     const isOut=out.has(p.v);const dc=isOut?'#e05555':color;
     const anchor=i===0?'start':i===pts.length-1?'end':'middle';
-    svg+=`<circle cx="${p.x}" cy="${p.y}" r="${isOut?4.5:3}" fill="${dc}"/>`;
-    if(isOut)svg+=`<circle cx="${p.x}" cy="${p.y}" r="7" fill="none" stroke="#e05555" stroke-width="1" opacity="0.5"/>`;
-    svg+=`<text x="${p.x}" y="${p.y-6}" text-anchor="${anchor}" font-size="7" fill="${isOut?'#e05555':color}" opacity="0.9">${fmtLabel(p.v,unit)}</text>`;
+    inner+=`<circle cx="${p.x}" cy="${p.y}" r="${isOut?4.5:3}" fill="${dc}"/>`;
+    if(isOut)inner+=`<circle cx="${p.x}" cy="${p.y}" r="7" fill="none" stroke="#e05555" stroke-width="1" opacity="0.5"/>`;
+    inner+=`<text x="${p.x}" y="${p.y-6}" text-anchor="${anchor}" font-size="7" fill="${isOut?'#e05555':color}" opacity="0.9">${fmtLabel(p.v,unit)}</text>`;
   });
-  svg+='</svg>';
-  return{svg,missing};
+  const svgEl=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;min-width:${W}px;height:${H}px;display:block">${inner}</svg>`;
+  const svg=`<div class="chart-scroll">${svgEl}</div>`;
+  return{svg,missing,scrollable:valid.length>20};
 }
 
 const SEED_PROFILES=[
@@ -231,7 +240,11 @@ const SEED_CHECKINS=[
 
 let state={view:'landing',profiles:[],checkins:{},selectedProfileId:null,currentProfile:null,currentCheckins:[],selectedDate:today(),loading:false};
 const app=document.getElementById('app');
-function render(){app.innerHTML='';buildView();}
+function render(){
+  app.innerHTML='';
+  buildView();
+  document.querySelectorAll('.chart-scroll').forEach(el=>{el.scrollLeft=el.scrollWidth;});
+}
 
 async function init(){
   render();
@@ -298,7 +311,7 @@ function buildAdmin(){
     const ff=[['Email',sel.email],['Edad',sel.edad?`${sel.edad} años`:'–'],['Altura',sel.altura?`${sel.altura} cm`:'–'],['Peso inicial',sel.peso_inicial?`${sel.peso_inicial} kg`:'–'],['Talla pantalón',sel.talla_pantalon||'–'],['Talla camiseta',sel.talla_camiseta||'–'],['Objetivo',sel.objetivo||'–'],['Actividad',sel.actividad||'–'],['Entrena',sel.entrena||'–'],['Pasos habituales',sel.pasos_aprox?sel.pasos_aprox.toLocaleString():'–'],['Historial dietas',sel.historial_dietas||'–'],['Qué le ha fallado',sel.fallo_dietas||'–'],['Condición médica',sel.condicion_medica||'–'],['Restricciones alim.',sel.restricciones_alimentarias||'–'],['Profesión',sel.profesion||'–']];
     const fichaHTML=ff.map(([k,v])=>`<div class="ficha-row"><span class="ficha-key">${k}</span><span class="ficha-val">${v}</span></div>`).join('');
     const stats=latest?`<div class="stats-grid"><div class="stat-card"><div class="stat-label">Últimos pasos</div><div class="stat-value">${latest.steps!=null?latest.steps.toLocaleString():'–'}</div><div class="stat-unit">pasos</div></div><div class="stat-card"><div class="stat-label">Último peso</div><div class="stat-value">${latest.weight??'–'}</div><div class="stat-unit">kg</div></div><div class="stat-card"><div class="stat-label">Cintura</div><div class="stat-value">${latest.waist??'–'}</div><div class="stat-unit">cm</div></div><div class="stat-card"><div class="stat-label">Cadera</div><div class="stat-value">${latest.hip??'–'}</div><div class="stat-unit">cm</div></div><div class="stat-card"><div class="stat-label">Muslo</div><div class="stat-value">${latest.thigh??'–'}</div><div class="stat-unit">cm</div></div></div>`:'';
-    function ac(field,label,unit,color){const data=rows.map(r=>({date:r.date,value:r[field]??null}));const{svg}=makeChart(data,unit,color,true);return`<div class="chart-wrap"><div class="chart-title">${label} <span style="color:var(--admin-muted)">(${unit})</span></div>${svg}</div>`;}
+    function ac(field,label,unit,color){const data=rows.map(r=>({date:r.date,value:r[field]??null}));const{svg,scrollable}=makeChart(data,unit,color,true);const hint=scrollable?`<div class="chart-scroll-hint">↔ Desliza para ver el historial completo</div>`:'';return`<div class="chart-wrap"><div class="chart-title">${label} <span style="color:var(--admin-muted)">(${unit})</span></div>${svg}${hint}</div>`;}
     const tableRows=[...rows].reverse().map(r=>`<tr><td>${fmtDate(r.date)}</td><td>${r.steps!=null?r.steps.toLocaleString():'–'}</td><td>${r.weight??'–'}</td><td>${r.waist??'–'}</td><td>${r.hip??'–'}</td><td>${r.thigh??'–'}</td><td><div class="action-btns"><button class="btn btn-sm btn-ghost-dark editBtn" data-date="${r.date}">✏️</button><button class="btn btn-sm btn-danger delBtn" data-date="${r.date}">🗑</button></div></td></tr>`).join('');
     mainContent=`<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem"><div style="font-family:'DM Serif Display',serif;font-size:1.6rem;color:var(--admin-accent)">${sel.nombre} ${sel.apellido1} ${sel.apellido2||''}</div><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="btn btn-sm" style="background:var(--admin-accent);color:var(--admin-bg);font-weight:700" id="addCheckinBtn">+ Añadir registro</button><button class="btn btn-sm btn-danger" id="deleteProfileBtn">Eliminar perfil</button></div></div><div class="detail-grid"><div><div class="detail-col-title">Ficha de clienta</div><div class="ficha">${fichaHTML}</div></div><div><div class="detail-col-title">Progreso</div>${stats}${ac('weight','Peso','kg',colors.weight)}${ac('steps','Pasos','pasos',colors.steps)}${ac('waist','Cintura','cm',colors.waist)}${ac('hip','Cadera','cm',colors.hip)}${ac('thigh','Muslo','cm',colors.thigh)}</div></div>${rows.length>0?`<div style="margin-top:1.5rem"><div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--admin-muted);margin-bottom:.75rem">Todos los registros</div><div class="table-wrap"><table class="data-table"><thead><tr><th>Fecha</th><th>Pasos</th><th>Peso</th><th>Cintura</th><th>Cadera</th><th>Muslo</th><th></th></tr></thead><tbody>${tableRows}</tbody></table></div></div>`:''}`;
   }
@@ -406,9 +419,10 @@ function buildCheckin(){
 
   function clientChart(field,unit,color){
     const data=rows.map(r=>({date:r.date,value:r[field]??null}));
-    const{svg,missing}=makeChart(data,unit,color,false);
+    const{svg,missing,scrollable}=makeChart(data,unit,color,false);
     const missingHTML=missing.length?`<div style="font-size:.68rem;color:#b08040;margin-top:.2rem"><span style="background:#e8d9b8;border-radius:3px;padding:1px 4px;margin-right:4px">Sin dato</span>${missing.map(d=>fmtShort(d)).join(', ')}</div>`:'';
-    return`<div style="margin-top:.75rem"><div class="chart-wrap-light">${svg}${missingHTML}</div></div>`;
+    const hint=scrollable?`<div class="chart-scroll-hint">↔ Desliza para ver el historial completo</div>`:'';
+    return`<div style="margin-top:.75rem"><div class="chart-wrap-light">${svg}${hint}${missingHTML}</div></div>`;
   }
 
   function fieldBlock(id,label,field,unit,color,required=false,hint=''){
